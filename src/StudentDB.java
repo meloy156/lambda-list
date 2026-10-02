@@ -1,8 +1,9 @@
 import java.util.*;
 import java.util.stream.Collectors;
 import info.kgeorgiy.java.advanced.student.*;
+import org.jsoup.select.Collector;
 
-public class StudentDB implements StudentQuery {
+public class StudentDB implements GroupQuery {
 
     @Override
     public List<String> getFirstNames(List<Student> students) {
@@ -103,5 +104,64 @@ public class StudentDB implements StudentQuery {
                         Student::lastName,
                         Student::firstName,
                         (old, next) -> old.compareTo(next) <= 0 ? old : next));
+    }
+
+    @Override
+    public List<Group> getGroupsByName(Collection<Student> collection) {
+        return collection.stream()
+                .collect(Collectors.groupingBy(
+                        Student::groupName,
+                        TreeMap::new,
+                        Collectors.collectingAndThen(
+                                Collectors.toList(),
+                                list -> list.stream().sorted(STUDENT_COMPARATOR).toList()
+                        )
+                ))
+                .entrySet().stream()
+                .map(e -> new Group(e.getKey(), e.getValue()))
+                .toList();
+    }
+
+    @Override
+    public List<Group> getGroupsById(Collection<Student> collection) {
+        return collection.stream()
+                .collect(Collectors.groupingBy(
+                        Student::groupName,
+                        TreeMap::new,
+                        Collectors.collectingAndThen(
+                                Collectors.toList(),
+                                list -> list.stream().sorted(Student::compareTo).toList()
+                        )
+                ))
+                .entrySet().stream()
+                .map(r -> new Group(r.getKey(), r.getValue()))
+                .toList();
+    }
+
+    @Override
+    public GroupName getLargestGroup(Collection<Student> collection) {
+        return collection.stream()
+                .collect(Collectors.groupingBy(Student::groupName, Collectors.counting()
+                ))
+                .entrySet().stream()
+                .max(Map.Entry.<GroupName, Long>comparingByValue()
+                        .thenComparing(Map.Entry.comparingByKey()))
+                .map(Map.Entry::getKey)
+                .orElse(null);
+    }
+
+    @Override
+    public GroupName getLargestGroupFirstName(final Collection<Student> students) {
+        return students.stream()
+                .collect(Collectors.groupingBy(
+                        Student::groupName,
+                        Collectors.mapping(Student::firstName, Collectors.toSet())
+                ))
+                .entrySet().stream()
+                .max(Map.Entry.<GroupName, Set<String>>comparingByValue(
+                                Comparator.comparingInt(Set::size))
+                        .thenComparing(Map.Entry.comparingByKey(Comparator.reverseOrder())))
+                .map(Map.Entry::getKey)
+                .orElse(null);
     }
 }
